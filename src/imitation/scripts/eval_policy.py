@@ -7,6 +7,7 @@ import time
 from typing import Any, Mapping, Optional
 
 import gym
+from gym3 import ToGymEnv, VideoRecorderWrapper
 from sacred.observers import FileStorageObserver
 from stable_baselines3.common.vec_env import VecEnvWrapper
 
@@ -46,8 +47,11 @@ def video_wrapper_factory(log_dir: str, **kwargs):
     def f(env: gym.Env, i: int) -> gym.Env:
         """Wraps `env` in a recorder saving videos to `{log_dir}/videos/{i}`."""
         directory = os.path.join(log_dir, "videos", str(i))
-        return video_wrapper.VideoWrapper(env, directory=directory, **kwargs)
 
+        if not isinstance(env.unwrapped, ToGymEnv):
+            return video_wrapper.VideoWrapper(env, directory=directory, **kwargs)
+        else:
+            return VideoRecorderWrapper(env.unwrapped, directory=directory, **kwargs)
     return f
 
 
