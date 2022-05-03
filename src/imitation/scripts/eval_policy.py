@@ -51,18 +51,28 @@ def video_wrapper_factory(log_dir: str, **kwargs):
         if not isinstance(env.unwrapped, ToGymEnv):
             return video_wrapper.VideoWrapper(env, directory=directory, **kwargs)
         else:
+            import gym3
             # This is the gym3.Env, which VideoRecorderWrapper expects.
-            unwrapped_env = env.unwrapped.env
-            # VideoRecorderWrapper will be a gym3.Env again, so we wrap with ToGymEnv.
-            return ToGymEnv(VideoRecorderWrapper(
-                unwrapped_env,
-                directory=directory,
-                # This will generate rgb images. In order for this to work the
-                # "render_mode" env_make_kwargs must be set to "rgb_array".
-                # If you want the recorded video to be the actual observations, remove
-                # this argument.
-                info_key="rgb",  # Recorded videos should use the human rendering.
-                **kwargs))
+            unwrapped_env: gym3.Env = env.unwrapped.env
+            if "render_mode" in env.spec._kwargs:
+                # VideoRecorderWrapper will be a gym3.Env again, so we wrap with ToGymEnv.
+                return ToGymEnv(VideoRecorderWrapper(
+                    unwrapped_env,
+                    directory=directory,
+                    # This will generate rgb images. In order for this to work the
+                    # "render_mode" env_make_kwargs must be set to "rgb_array".
+                    # If "render_mode" is not set, using this info_key will cause an
+                    # exception later down the line.
+                    info_key="rgb",  # Recorded videos should use the human rendering.
+                    **kwargs))
+            else:
+                # If the render_mode is not set, set up a video recorder without
+                # info_key. This will record the actual observations, as opposed to
+                # human-intended rgb images.
+                return ToGymEnv(VideoRecorderWrapper(
+                    unwrapped_env,
+                    directory=directory,
+                    **kwargs))
     return f
 
 
