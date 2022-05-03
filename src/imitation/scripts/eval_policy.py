@@ -7,7 +7,6 @@ import time
 from typing import Any, Mapping, Optional
 
 import gym
-from gym3 import ToGymEnv, VideoRecorderWrapper
 from sacred.observers import FileStorageObserver
 from stable_baselines3.common.vec_env import VecEnvWrapper
 
@@ -48,31 +47,54 @@ def video_wrapper_factory(log_dir: str, **kwargs):
         """Wraps `env` in a recorder saving videos to `{log_dir}/videos/{i}`."""
         directory = os.path.join(log_dir, "videos", str(i))
 
-        if not isinstance(env.unwrapped, ToGymEnv):
+        if isinstance(env, gym.Env):
             return video_wrapper.VideoWrapper(env, directory=directory, **kwargs)
         else:
-            import gym3
-            # This is the gym3.Env, which VideoRecorderWrapper expects.
-            unwrapped_env: gym3.Env = env.unwrapped.env
-            if "render_mode" in env.spec._kwargs:
-                # VideoRecorderWrapper will be a gym3.Env again, so we wrap with ToGymEnv.
-                return ToGymEnv(VideoRecorderWrapper(
-                    unwrapped_env,
-                    directory=directory,
-                    # This will generate rgb images. In order for this to work the
-                    # "render_mode" env_make_kwargs must be set to "rgb_array".
-                    # If "render_mode" is not set, using this info_key will cause an
-                    # exception later down the line.
-                    info_key="rgb",  # Recorded videos should use the human rendering.
-                    **kwargs))
-            else:
-                # If the render_mode is not set, set up a video recorder without
-                # info_key. This will record the actual observations, as opposed to
-                # human-intended rgb images.
-                return ToGymEnv(VideoRecorderWrapper(
-                    unwrapped_env,
-                    directory=directory,
-                    **kwargs))
+            try:
+                # We assume that we have received a ToGymEnv. If that is the case, we
+                # should be able to import gym3.
+                import gym3
+                from gym3 import ToGymEnv
+                # env could be a ToGymEnv or something wrapping the ToGymEnv.
+                # Using .unwrap we get the underlying ToGymEnv.
+                unwrapped_env: ToGymEnv = env.unwrapped
+                # Make sure this is actually a ToGymEnv.
+                if isinstance(unwrapped_env, ToGymEnv):
+                    # VideoRecorderWrapper expects a gym3.Env, which we get from the
+                    # ToGymEnv this way.
+                    gym3_env: gym3.Env = unwrapped_env.env
+                    if "render_mode" in env.spec._kwargs:
+                        # VideoRecorderWrapper will be a gym3.Env again, so we wrap with
+                        # ToGymEnv to get something imitation can work with
+                        return ToGymEnv(gym3.VideoRecorderWrapper(
+                            gym3_env,
+                            directory=directory,
+                            # This will generate rgb images. In order for this to work
+                            # the "render_mode" env_make_kwargs must be set to e.g.
+                            # "rgb_array". If "render_mode" is not set, using this
+                            # info_key will cause an exception later down the line.
+                            info_key="rgb",
+                            # Recorded videos should use the human rendering.
+                            **kwargs))
+                    else:
+                        # If the render_mode is not set, set up a video recorder without
+                        # info_key. This will record the actual low-dimensional
+                        # observations, as opposed to human-intended rgb images.
+                        return ToGymEnv(gym3.VideoRecorderWrapper(
+                            gym3_env,
+                            directory=directory,
+                            **kwargs))
+                else:
+                    # If we get something that is not a gym.Env and not a ToGymEnv,
+                    # this env is not supported.
+                    raise NotImplementedError(
+                        f"Received unsupported env {env} of type {type(env)}!")
+            except ImportError:
+                # As above, if env is not gym.Env, but gym3 is not installed, we don't
+                # support this type of env.
+                raise NotImplementedError(
+                    f"Received unsupported env {env} of type {type(env)}!")
+
     return f
 
 
