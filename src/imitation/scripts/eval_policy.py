@@ -54,7 +54,11 @@ def video_wrapper_factory(log_dir: str, **kwargs):
             # This is the gym3.Env, which VideoRecorderWrapper expects.
             unwrapped_env = env.unwrapped.env
             # VideoRecorderWrapper will be a gym3.Env again, so we wrap with ToGymEnv.
-            return ToGymEnv(VideoRecorderWrapper(unwrapped_env, directory=directory, **kwargs))
+            return ToGymEnv(VideoRecorderWrapper(
+                unwrapped_env,
+                directory=directory,
+                info_key="human",  # Recorded videos should use the human rendering.
+                **kwargs))
     return f
 
 
