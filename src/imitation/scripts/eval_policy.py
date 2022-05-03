@@ -51,7 +51,9 @@ def video_wrapper_factory(log_dir: str, **kwargs):
         if not isinstance(env.unwrapped, ToGymEnv):
             return video_wrapper.VideoWrapper(env, directory=directory, **kwargs)
         else:
-            return VideoRecorderWrapper(env.unwrapped, directory=directory, **kwargs)
+            # This will be the gym3.Env, which VideoRecorderWrapper expects.
+            unwrapped_env = env.unwrapped.env
+            return VideoRecorderWrapper(unwrapped_env, directory=directory, **kwargs)
     return f
 
 
