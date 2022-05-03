@@ -57,7 +57,11 @@ def video_wrapper_factory(log_dir: str, **kwargs):
             return ToGymEnv(VideoRecorderWrapper(
                 unwrapped_env,
                 directory=directory,
-                info_key="human",  # Recorded videos should use the human rendering.
+                # This will generate rgb images. In order for this to work the
+                # "render_mode" env_make_kwargs must be set to "rgb_array".
+                # If you want the recorded video to be the actual observations, remove
+                # this argument.
+                info_key="rgb",  # Recorded videos should use the human rendering.
                 **kwargs))
     return f
 
